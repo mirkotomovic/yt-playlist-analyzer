@@ -5,76 +5,141 @@ import sys
 from googleapiclient.discovery import build
 from urllib import parse
 
-playlist_id = parse.parse_qs(parse.urlsplit(sys.argv[1]).query)["list"][0]
+playlist_id = parse.parse_qs(parse.urlsplit(sys.argv[1]).query).get("list", [None])[0]
+video_id = parse.parse_qs(parse.urlsplit(sys.argv[1]).query).get("v", [None])[0]
 
 yt_service = build("youtube", "v3", developerKey="YOUR_YOUTUBE_API_KEY")
-next_page_token = None
-total_time = 0
-while True:
-    request = yt_service.playlistItems().list(
-        part="contentDetails",
-        playlistId=playlist_id,
-        maxResults=50,
-        pageToken=next_page_token,
+
+
+def playlist_duration(playlist_id):
+    next_page_token = None
+    total_time = 0
+    while True:
+        request = yt_service.playlistItems().list(
+            part="contentDetails",
+            playlistId=playlist_id,
+            maxResults=50,
+            pageToken=next_page_token,
+        )
+
+        response = request.execute()
+
+        video_ids = ""
+        for item in response["items"]:
+            video_ids += item["contentDetails"]["videoId"] + ","
+
+        video_request = yt_service.videos().list(
+            part="contentDetails", id=video_ids[:-1]
+        )
+
+        video_response = video_request.execute()
+
+        for item in video_response["items"]:
+            duration = item["contentDetails"]["duration"]
+            time = re.search(
+                r"PT(?:([0-9]{1,2})H)?(?:([0-9]{1,2})M)?(?:([0-9]{1,2})S)?", duration
+            )
+            total_time += 3600 * (int(time.group(1)) if time.group(1) else 0)
+            total_time += 60 * (int(time.group(2)) if time.group(2) else 0)
+            total_time += int(time.group(3)) if time.group(3) else 0
+
+        next_page_token = response.get("nextPageToken")
+
+        if not next_page_token:
+            break
+
+    print(
+        "Total playlist length normal speed: {}".format(
+            str(datetime.timedelta(seconds=total_time))
+        )
+    )
+    print(
+        "Total playlist length at 1.1x:\t    {}".format(
+            str(datetime.timedelta(seconds=total_time * 10 // 11))
+        )
+    )
+    print(
+        "Total playlist length at 1.25x:\t    {}".format(
+            str(datetime.timedelta(seconds=total_time * 4 // 5))
+        )
+    )
+    print(
+        "Total playlist length at 1.30x:\t    {}".format(
+            str(datetime.timedelta(seconds=total_time * 10 // 13))
+        )
+    )
+    print(
+        "Total playlist length at 1.50x:\t    {}".format(
+            str(datetime.timedelta(seconds=total_time * 2 // 3))
+        )
+    )
+    print(
+        "Total playlist length at 1.75x:\t    {}".format(
+            str(datetime.timedelta(seconds=total_time * 4 // 7))
+        )
+    )
+    print(
+        "Total playlist length at 2x:\t    {}".format(
+            str(datetime.timedelta(seconds=total_time * 1 // 2))
+        )
     )
 
-    response = request.execute()
 
-    video_ids = ""
-    for item in response["items"]:
-        video_ids += item["contentDetails"]["videoId"] + ","
-
-    video_request = yt_service.videos().list(part="contentDetails", id=video_ids[:-1])
+def video_duration(video_id):
+    video_request = yt_service.videos().list(part="snippet,contentDetails", id=video_id)
 
     video_response = video_request.execute()
+    total_time = 0
 
-    for item in video_response["items"]:
-        duration = item["contentDetails"]["duration"]
-        time = re.search(
-            r"PT(?:([0-9]{1,2})H)?(?:([0-9]{1,2})M)?(?:([0-9]{1,2})S)?", duration
+    duration = video_response["items"][0]["contentDetails"]["duration"]
+    time = re.search(
+        r"PT(?:([0-9]{1,2})H)?(?:([0-9]{1,2})M)?(?:([0-9]{1,2})S)?", duration
+    )
+    total_time += 3600 * (int(time.group(1)) if time.group(1) else 0)
+    total_time += 60 * (int(time.group(2)) if time.group(2) else 0)
+    total_time += int(time.group(3)) if time.group(3) else 0
+
+    print("Title: {}".format(video_response["items"][0]["snippet"]["title"]))
+
+    print(
+        "Total video duration normal speed:  {}".format(
+            str(datetime.timedelta(seconds=total_time))
         )
-        total_time += 3600 * (int(time.group(1)) if time.group(1) else 0)
-        total_time += 60 * (int(time.group(2)) if time.group(2) else 0)
-        total_time += int(time.group(3)) if time.group(3) else 0
+    )
+    print(
+        "Total video duration at 1.1x:\t    {}".format(
+            str(datetime.timedelta(seconds=total_time * 10 // 11))
+        )
+    )
+    print(
+        "Total video duration at 1.25x:\t    {}".format(
+            str(datetime.timedelta(seconds=total_time * 4 // 5))
+        )
+    )
+    print(
+        "Total video duration at 1.30x:\t    {}".format(
+            str(datetime.timedelta(seconds=total_time * 10 // 13))
+        )
+    )
+    print(
+        "Total video duration at 1.50x:\t    {}".format(
+            str(datetime.timedelta(seconds=total_time * 2 // 3))
+        )
+    )
+    print(
+        "Total video duration at 1.75x:\t    {}".format(
+            str(datetime.timedelta(seconds=total_time * 4 // 7))
+        )
+    )
+    print(
+        "Total video duration at 2x:\t    {}".format(
+            str(datetime.timedelta(seconds=total_time * 1 // 2))
+        )
+    )
 
-    next_page_token = response.get("nextPageToken")
 
-    if not next_page_token:
-        break
+if video_id:
+    video_duration(video_id)
 
-
-print(
-    "Total playlist length normal speed: {}".format(
-        str(datetime.timedelta(seconds=total_time))
-    )
-)
-print(
-    "Total playlist length at 1.1x:\t    {}".format(
-        str(datetime.timedelta(seconds=total_time * 10 // 11))
-    )
-)
-print(
-    "Total playlist length at 1.25x:\t    {}".format(
-        str(datetime.timedelta(seconds=total_time * 4 // 5))
-    )
-)
-print(
-    "Total playlist length at 1.30x:\t    {}".format(
-        str(datetime.timedelta(seconds=total_time * 10 // 13))
-    )
-)
-print(
-    "Total playlist length at 1.50x:\t    {}".format(
-        str(datetime.timedelta(seconds=total_time * 2 // 3))
-    )
-)
-print(
-    "Total playlist length at 1.75x:\t    {}".format(
-        str(datetime.timedelta(seconds=total_time * 4 // 7))
-    )
-)
-print(
-    "Total playlist length at 2x:\t    {}".format(
-        str(datetime.timedelta(seconds=total_time * 1 // 2))
-    )
-)
+if playlist_id:
+    playlist_duration(playlist_id)
