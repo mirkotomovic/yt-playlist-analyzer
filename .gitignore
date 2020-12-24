@@ -1,2 +1,6 @@
 .vscode/
 env/
+dist/
+build/
+main.spec
+out.json

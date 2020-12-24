@@ -1,17 +1,24 @@
 #!/usr/bin/env python
+import argparse
 import datetime
 import re
 import sys
 from googleapiclient.discovery import build
 from urllib import parse
 
+
 playlist_id = parse.parse_qs(parse.urlsplit(sys.argv[1]).query).get("list", [None])[0]
 video_id = parse.parse_qs(parse.urlsplit(sys.argv[1]).query).get("v", [None])[0]
 
-yt_service = build("youtube", "v3", developerKey="YOUR_YOUTUBE_API_KEY")
+skip = 0
+if len(sys.argv) > 2:
+    skip = int(sys.argv[2])
+yt_service = build(
+    "youtube", "v3", developerKey="AIzaSyCz-06IJreO9emgcaJn6XFynwov1LVdXb0"
+)
 
 
-def playlist_duration(playlist_id):
+def playlist_duration(playlist_id, skip):
     next_page_token = None
     total_time = 0
     while True:
@@ -35,6 +42,9 @@ def playlist_duration(playlist_id):
         video_response = video_request.execute()
 
         for item in video_response["items"]:
+            if skip > 0:
+                skip -= 1
+                continue
             duration = item["contentDetails"]["duration"]
             time = re.search(
                 r"PT(?:([0-9]{1,2})H)?(?:([0-9]{1,2})M)?(?:([0-9]{1,2})S)?", duration
@@ -142,4 +152,4 @@ if video_id:
     video_duration(video_id)
 
 if playlist_id:
-    playlist_duration(playlist_id)
+    playlist_duration(playlist_id, skip)
